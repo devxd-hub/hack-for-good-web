@@ -26,9 +26,6 @@ export const CallToAction: React.FC = () => {
           src="/hero/registration.png"
           alt="Registration Background"
           className="w-full h-full object-cover object-center pointer-events-none select-none"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/registration.png';
-          }}
         />
         {/* Soft edge blend at the top and bottom only to keep center background fully vibrant */}
         <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#08090C] to-transparent pointer-events-none" />

@@ -19,12 +19,15 @@ function initLenis(isReducedMotion: boolean): Lenis {
     return globalLenisInstance;
   }
 
-  // 1. Initialize Lenis with exact configuration
+  // 1. Initialize Lenis with high-performance responsive configuration
   const lenis = new Lenis({
-    duration: isReducedMotion ? 0 : 0.8,
+    duration: isReducedMotion ? 0 : 1.0,
+    easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
     orientation: 'vertical',
     gestureOrientation: 'vertical',
     smoothWheel: !isReducedMotion,
+    wheelMultiplier: 1.0,
+    touchMultiplier: 1.5,
     allowNestedScroll: true,
   });
 
@@ -42,8 +45,8 @@ function initLenis(isReducedMotion: boolean): Lenis {
   };
   gsap.ticker.add(tickerCallback);
 
-  // 4. Disable GSAP ticker lag smoothing for deterministic frame stepping
-  gsap.ticker.lagSmoothing(0);
+  // 4. Smooth out frame rate spikes without jumping
+  gsap.ticker.lagSmoothing(500, 33);
 
   return lenis;
 }

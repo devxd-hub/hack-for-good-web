@@ -1042,6 +1042,25 @@ export default function TicketStubFooter({
       return
     }
 
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTicketVisible(true)
+          gsap.to(el, {
+            y: 0,
+            opacity: 1,
+            scale: 1,
+            clipPath: "inset(0% 0% 0% 0%)",
+            duration: 0.8,
+            ease: "power3.out",
+            overwrite: "auto",
+          })
+        }
+      },
+      { threshold: 0.01 }
+    )
+    io.observe(el)
+
     const ctx = gsap.context(() => {
       gsap.fromTo(
         el,
@@ -1060,16 +1079,23 @@ export default function TicketStubFooter({
           ease: "power3.out",
           scrollTrigger: {
             trigger: el,
-            start: "top 88%",
+            start: "top 95%",
             toggleActions: "play none none reverse",
             onEnter: () => setTicketVisible(true),
+            onEnterBack: () => setTicketVisible(true),
             onLeaveBack: () => setTicketVisible(false),
           },
         }
       )
     }, ticketRef)
 
-    return () => ctx.revert()
+    // Ensure ScrollTrigger accurately measures page bottom
+    ScrollTrigger.refresh()
+
+    return () => {
+      io.disconnect()
+      ctx.revert()
+    }
   }, [reduced])
 
   React.useEffect(() => {
@@ -1085,7 +1111,7 @@ export default function TicketStubFooter({
         setVisible(e.isIntersecting)
         if (e.isIntersecting) setSeen(true)
       },
-      { threshold: 0.05 },
+      { threshold: 0.01 },
     )
     io.observe(el)
     return () => io.disconnect()

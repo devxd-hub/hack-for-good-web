@@ -148,3 +148,19 @@ html.lenis, html.lenis body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Global scroll & rendering optimizations */
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hardware accelerated transform utility */
+.transform-gpu {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  will-change: transform;
+}
+
+

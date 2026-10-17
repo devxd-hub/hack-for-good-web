@@ -91,7 +91,7 @@ function LivingSea() {
       <clipPath id="cruise-silhouette"><path d="M20 470L30 437 56 409 83 374 107 347 143 316 148 296 199 276 205 260 250 241 260 222 269 218 260 208 261 190 280 185 289 208 285 220 333 220 355 189 383 162 372 136 397 135 400 96 442 89 474 125 485 139 501 182 578 191 636 208 649 229 707 215 840 184 956 166 958 116 959 84 973 81 976 54 982 54 987 80 1007 83 1005 94 990 99 1003 122 1040 127 1039 135 1022 139 1050 161 1145 168 1190 183 1220 194 1243 218 1300 234 1322 251 1315 269 1340 287 1368 317 1490 330 1487 290 1493 283 1498 332 1518 346 1354 494 1353 508 67 501 31 484Z" /></clipPath>
       <clipPath id="private-silhouette"><path d="M21 919L75 901 101 866 147 843 152 816 206 815 208 746 253 734 300 706 333 687 362 672 462 654 457 626 469 616 449 583 451 554 463 545 472 577 490 585 496 613 517 628 529 609 548 610 565 629 563 654 655 659 778 677 826 697 947 725 1057 752 1484 777 1483 745 1489 741 1494 780 1517 800 1427 901 1378 947 108 960 29 949Z" /></clipPath>
       <filter id="ambient-water" x="-5%" y="-5%" width="110%" height="110%">
-        <feTurbulence type="fractalNoise" baseFrequency=".011 .09" numOctaves="2" seed="21" result="flow">
+        <feTurbulence type="fractalNoise" baseFrequency=".011 .09" numOctaves="1" seed="21" result="flow">
           <animate attributeName="baseFrequency" values=".011 .09;.014 .075;.011 .09" dur="14s" repeatCount="indefinite" />
         </feTurbulence>
         <feDisplacementMap in="SourceGraphic" in2="flow" scale="5" xChannelSelector="R" yChannelSelector="G">
@@ -168,6 +168,15 @@ export const Hero: React.FC<HeroProps> = ({ onOpenApplyModal }) => {
     const sportsSide = sports.querySelector<HTMLElement>('.sports-side');
     const sportsRear = sports.querySelector<HTMLElement>('.sports-rear');
     const wheelRotors = Array.from(sports.querySelectorAll<SVGGElement>('[data-wheel-rotor]'));
+    const nearDoor = sports.querySelector<SVGElement>('[data-car-door="near"]');
+    const farDoor = sports.querySelector<SVGElement>('[data-car-door="far"]');
+    const doors = sports.querySelector<SVGElement>('.car-doors');
+    const sea = stage.querySelector<SVGElement>('.sea-wordmark');
+    const livingSea = stage.querySelector<SVGElement>('.living-sea');
+    const goodRiseLayers = sea ? Array.from(sea.querySelectorAll<SVGElement>('[data-good-rise]')) : [];
+    const waterlineClip = sea ? sea.querySelector<SVGElement>('[data-waterline-clip]') : null;
+    const letterDistortion = sea ? sea.querySelector<SVGElement>('[data-letter-distortion]') : null;
+
     // Wheel rotation follows distance along the road, so stopping or reversing scroll does the same to the wheels.
     const distances = [0];
     for (let index = 1; index <= 200; index++) {
@@ -175,62 +184,82 @@ export const Hero: React.FC<HeroProps> = ({ onOpenApplyModal }) => {
       const current = sampleRoute(sportsRoute, index / 200);
       distances.push(distances[index - 1] + Math.hypot(current.x - previous.x, current.y - previous.y));
     }
+
+    // Cached stage layout values to prevent layout thrashing inside onUpdate
+    let scale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    const updateDimensions = () => {
+      const stageW = stage.clientWidth || 1672;
+      const stageH = stage.clientHeight || 941;
+      scale = Math.max(stageW / 1672, stageH / 941);
+      const horizontalAnchor = stageW <= 640 ? 0.22 : 0.5;
+      offsetX = (stageW - 1672 * scale) * horizontalAnchor;
+      offsetY = (stageH - 941 * scale) / 2;
+    };
+    updateDimensions();
+
     const media = gsap.matchMedia();
     media.add({ reduced: '(prefers-reduced-motion: reduce)', normal: '(prefers-reduced-motion: no-preference)' }, context => {
       const reduced = Boolean(context.conditions?.reduced);
       const driveDistance = () => Math.max(1200, Math.min(1800, window.innerHeight * 1.7));
       const exitDistance = 450;
+      let lastSceneComplete = false;
+
       const draw = (totalProgress: number) => {
-        section.dataset.sceneComplete = totalProgress >= .999 ? 'true' : 'false';
+        const isComplete = totalProgress >= 0.999;
+        if (lastSceneComplete !== isComplete) {
+          lastSceneComplete = isComplete;
+          section.dataset.sceneComplete = isComplete ? 'true' : 'false';
+        }
+
         const traveled = totalProgress * (driveDistance() + exitDistance);
         const progress = Math.min(1, traveled / driveDistance());
         const exitProgress = Math.max(0, Math.min(1, (traveled - driveDistance() - 55) / (exitDistance - 55)));
-        const doorProgress = Math.min(1, exitProgress / .32);
-        const walkingProgress = Math.max(0, Math.min(1, (exitProgress - .28) / .72));
+        const doorProgress = Math.min(1, exitProgress / 0.32);
+        const walkingProgress = Math.max(0, Math.min(1, (exitProgress - 0.28) / 0.72));
         const step = walkingProgress * walkingProgress * (3 - 2 * walkingProgress);
+
         // Scissor doors lift first and remain fully raised throughout the standing phase.
-        sports.querySelector('[data-car-door="near"]')?.setAttribute('transform', `rotate(${doorProgress * 76} 1450 430)`);
-        sports.querySelector('[data-car-door="far"]')?.setAttribute('transform', `rotate(${doorProgress * 82} 1170 320)`);
-        const doors = sports.querySelector<SVGElement>('.car-doors');
+        if (nearDoor) nearDoor.setAttribute('transform', `rotate(${doorProgress * 76} 1450 430)`);
+        if (farDoor) farDoor.setAttribute('transform', `rotate(${doorProgress * 82} 1170 320)`);
         if (doors) doors.style.opacity = exitProgress > 0 ? '1' : '0';
-        const scale = Math.max(stage.clientWidth / 1672, stage.clientHeight / 941);
-        const horizontalAnchor = stage.clientWidth <= 640 ? .22 : .5;
-        const offsetX = (stage.clientWidth - 1672 * scale) * horizontalAnchor;
-        const offsetY = (stage.clientHeight - 941 * scale) / 2;
-        const emergence = Math.min(1, progress / .78);
+
+        const emergence = Math.min(1, progress / 0.78);
         const rise = 1 - Math.pow(1 - emergence, 2);
-        const sea = stage.querySelector<SVGElement>('.sea-wordmark');
-        const livingSea = stage.querySelector<SVGElement>('.living-sea');
+
         if (livingSea) gsap.set(livingSea, { x: offsetX, y: offsetY, width: 1672 * scale, height: 941 * scale });
         if (sea) {
           gsap.set(sea, { x: offsetX, y: offsetY, width: 1672 * scale, height: 941 * scale });
-          sea.querySelectorAll('[data-good-rise]').forEach(layer => layer.setAttribute('transform', `translate(0 ${(1 - rise) * 300})`));
+          for (let i = 0; i < goodRiseLayers.length; i++) {
+            goodRiseLayers[i].setAttribute('transform', `translate(0 ${(1 - rise) * 300})`);
+          }
           const agitation = Math.sin(Math.PI * emergence);
           const phase = emergence * 25;
-          const wavePoints = Array.from({ length: 56 }, (_, index) => {
+          let waveD = 'M420 285H1520';
+          for (let index = 55; index >= 0; index--) {
             const x = 420 + index * 20;
-            const y = 550 + agitation * (Math.sin(index * .67 + phase) * 5 + Math.sin(index * .29 - phase * .7) * 3);
-            return `${x.toFixed(1)} ${y.toFixed(1)}`;
-          });
-          sea.querySelector('[data-waterline-clip]')?.setAttribute('d', `M420 285H1520L${wavePoints.slice().reverse().join('L')}Z`);
-          sea.querySelector('[data-letter-distortion]')?.setAttribute('scale', (agitation * 17).toFixed(2));
+            const y = 550 + agitation * (Math.sin(index * 0.67 + phase) * 5 + Math.sin(index * 0.29 - phase * 0.7) * 3);
+            waveD += `L${x.toFixed(1)} ${y.toFixed(1)}`;
+          }
+          waveD += 'Z';
+          if (waterlineClip) waterlineClip.setAttribute('d', waveD);
+          if (letterDistortion) letterDistortion.setAttribute('scale', (agitation * 17).toFixed(2));
         }
-        stage.dataset.goodProgress = emergence.toFixed(3);
+
         const place = (el: HTMLElement, route: RoadPoint[]) => {
           const point = sampleRoute(route, progress);
-          // Hold the established heading for the final approach instead of yawing again at the endpoint.
-          const headingProgress = Math.min(progress, .86);
-          const before = sampleRoute(route, Math.max(0, headingProgress - .003));
-          const after = sampleRoute(route, Math.min(1, headingProgress + .003));
+          const headingProgress = Math.min(progress, 0.86);
+          const before = sampleRoute(route, Math.max(0, headingProgress - 0.003));
+          const after = sampleRoute(route, Math.min(1, headingProgress + 0.003));
           const dx = after.x - before.x;
           const dy = after.y - before.y;
-          const horizontal = dx / Math.max(.001, Math.hypot(dx, dy));
+          const horizontal = dx / Math.max(0.001, Math.hypot(dx, dy));
           const direction = dx >= 0 ? 1 : -1;
-          // The road tangent determines the nose direction; do not slide a fixed pose along it.
-          let slope = Math.atan2(dy, dx) * 180 / Math.PI;
+          let slope = (Math.atan2(dy, dx) * 180) / Math.PI;
           if (slope > 90) slope -= 180;
           if (slope < -90) slope += 180;
-          const facingCamera = 1 - Math.min(1, Math.abs(horizontal) / .65);
+          const facingCamera = 1 - Math.min(1, Math.abs(horizontal) / 0.65);
           gsap.set(el, {
             x: offsetX + point.x * scale,
             y: offsetY + point.y * scale,
@@ -242,13 +271,13 @@ export const Hero: React.FC<HeroProps> = ({ onOpenApplyModal }) => {
             transformOrigin: '50% 82%',
           });
 
-            // Keep a single opaque vehicle silhouette while its angle changes.
-            const rearFacing = facingCamera > .4;
-            if (sportsSide) sportsSide.style.opacity = rearFacing ? '0' : '1';
-            if (sportsRear) sportsRear.style.opacity = rearFacing ? '1' : '0';
-
+          const rearFacing = facingCamera > 0.4;
+          if (sportsSide) sportsSide.style.opacity = rearFacing ? '0' : '1';
+          if (sportsRear) sportsRear.style.opacity = rearFacing ? '1' : '0';
         };
+
         place(sports, sportsRoute);
+
         const placeCharacter = (element: HTMLElement, side: number) => {
           const doorX = side < 0 ? 453 : 479;
           const doorY = side < 0 ? 688 : 674;
@@ -264,24 +293,33 @@ export const Hero: React.FC<HeroProps> = ({ onOpenApplyModal }) => {
             clipPath: `inset(0 0 ${(1 - step) * 75}% 0)`,
           });
         };
+
         placeCharacter(woman, -1);
         placeCharacter(man, 1);
+
         const distanceIndex = Math.min(199, Math.floor(progress * 200));
         const distanceFraction = progress * 200 - distanceIndex;
         const distance = distances[distanceIndex] + (distances[distanceIndex + 1] - distances[distanceIndex]) * distanceFraction;
-        const wheelAngle = reduced ? 0 : distance / 18 * 180 / Math.PI;
-        wheelRotors.forEach(rotor => rotor.setAttribute('transform', `rotate(${wheelAngle.toFixed(2)} 50 50)`));
-        stage.dataset.driveProgress = progress.toFixed(3);
-        stage.dataset.exitProgress = exitProgress.toFixed(3);
-        stage.dataset.doorProgress = doorProgress.toFixed(3);
+        const wheelAngle = reduced ? 0 : (distance / 18) * (180 / Math.PI);
+        const transformStr = `rotate(${wheelAngle.toFixed(2)} 50 50)`;
+        for (let i = 0; i < wheelRotors.length; i++) {
+          wheelRotors[i].setAttribute('transform', transformStr);
+        }
       };
-      draw(reduced ? 1 : 0);
-      if (reduced) {
-        const resize = () => draw(1);
-        window.addEventListener('resize', resize);
-        return () => window.removeEventListener('resize', resize);
-      }
+
+      const handleResize = () => {
+        updateDimensions();
+        draw(state.progress);
+      };
+      window.addEventListener('resize', handleResize);
+
       const state = { progress: 0 };
+      draw(reduced ? 1 : 0);
+
+      if (reduced) {
+        return () => window.removeEventListener('resize', handleResize);
+      }
+
       const tween = gsap.to(state, {
         progress: 1,
         ease: 'none',
@@ -291,13 +329,21 @@ export const Hero: React.FC<HeroProps> = ({ onOpenApplyModal }) => {
           start: 'top top',
           end: () => `+=${driveDistance() + exitDistance}`,
           pin: stage,
-          scrub: .25,
+          scrub: true,
           anticipatePin: 1,
           invalidateOnRefresh: true,
-          onRefresh: () => draw(state.progress),
+          onRefresh: () => {
+            updateDimensions();
+            draw(state.progress);
+          },
         },
       });
-      return () => { tween.scrollTrigger?.kill(); tween.kill(); };
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        tween.scrollTrigger?.kill();
+        tween.kill();
+      };
     });
     return () => media.revert();
   }, []);

@@ -68,26 +68,12 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
 
     // Main Animation Loop with IntersectionObserver to avoid background CPU/GPU usage
     useEffect(() => {
-      let animId: number;
-      let isVisible = true;
-
-      const container = localContainerRef.current;
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            isVisible = entry.isIntersecting;
-          });
-        },
-        { threshold: 0 }
-      );
-
-      if (container) {
-        observer.observe(container);
-      }
+      let animId: number = 0;
+      let isVisible = false;
 
       const updateLoop = () => {
         if (!isVisible) {
-          animId = requestAnimationFrame(updateLoop);
+          animId = 0;
           return;
         }
 
@@ -108,7 +94,7 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
 
         // Direct DOM update on 3D scene container
         if (sceneRef.current) {
-          const rotY = (currentRotationRef.current % 360 + 360) % 360;
+          const rotY = ((currentRotationRef.current % 360) + 360) % 360;
           const tiltX = tiltRef.current.x;
           const tiltY = tiltRef.current.y;
 
@@ -133,11 +119,28 @@ const CircularGallery = React.forwardRef<HTMLDivElement, CircularGalleryProps>(
         animId = requestAnimationFrame(updateLoop);
       };
 
-      animId = requestAnimationFrame(updateLoop);
+      const container = localContainerRef.current;
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            const wasVisible = isVisible;
+            isVisible = entry.isIntersecting;
+            if (!wasVisible && isVisible && !animId) {
+              animId = requestAnimationFrame(updateLoop);
+            }
+          });
+        },
+        { threshold: 0 }
+      );
+
+      if (container) {
+        observer.observe(container);
+      }
 
       return () => {
         observer.disconnect();
-        cancelAnimationFrame(animId);
+        if (animId) cancelAnimationFrame(animId);
+        animId = 0;
       };
     }, [autoRotateSpeed, anglePerItem]);
 

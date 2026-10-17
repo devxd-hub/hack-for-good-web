@@ -24,8 +24,8 @@
   opacity: 0.88;
 }
 
-.sea-wordmark { position: absolute; top: 0; left: 0; z-index: 2; overflow: visible; pointer-events: none; }
-.living-sea { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; }
+.sea-wordmark { position: absolute; top: 0; left: 0; z-index: 2; overflow: visible; pointer-events: none; will-change: transform; transform: translateZ(0); }
+.living-sea { position: absolute; top: 0; left: 0; z-index: 2; pointer-events: none; will-change: transform; transform: translateZ(0); }
 @media (prefers-reduced-motion: reduce) { .living-sea { display: none; } }
 .good-lettering { opacity: 1; filter: drop-shadow(0 2px 3px rgba(24, 15, 35, .22)); }
 .good-water-motion { fill: none; stroke: #eeadbd; stroke-width: 1.2; stroke-linecap: round; }
@@ -38,6 +38,8 @@
   mask: url('/gta6/hero-foreground-mask.svg') center / cover no-repeat;
   -webkit-mask: url('/gta6/hero-foreground-mask.svg') center / cover no-repeat;
   pointer-events: none;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .hero-scene-shade {
